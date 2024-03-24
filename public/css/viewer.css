@@ -1,0 +1,10 @@
+/* Define a new CSS variable for the save button icon */
+:root {
+    --toolbarButton-saveFile-icon: url(/images/toolbarButton-saveFile.svg);
+}
+
+#saveFile::before,
+#secondarySaveFile::before {
+  -webkit-mask-image: var(--toolbarButton-saveFile-icon);
+          mask-image: var(--toolbarButton-saveFile-icon);
+}

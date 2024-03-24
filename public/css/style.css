@@ -1,0 +1,6 @@
+iframe {
+    width: 100%; /* Full width */
+    height: 100vh; /* Full height of the viewport */
+    border: none; /* Remove border */
+    display: block; /* Prevent inline spacing */
+}
