@@ -2,10 +2,10 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const dbName = path.join(__dirname, 'data', 'characters.db');
-
+console.log(dbName);
 // Function to run a database operation (query or command) and automatically close the connection
 function runDbOperation(operationCallback) {
-    const db = new sqlite3.Database(dbName, sqlite3.OPEN_READWRITE, (err) => {
+    const db = new sqlite3.Database(dbName, (err) => {
         if (err) {
             console.error('Error opening database', err.message);
             return;
@@ -33,7 +33,7 @@ function initializeDb() {
             );`);
 
             db.run(`CREATE INDEX IF NOT EXISTS idx_character_name ON FormData (
-                json_extract(data, '$."Character Name"')
+                json_extract(data, '$."Text Field0"')
             );`);
         });
     });
@@ -42,11 +42,11 @@ function initializeDb() {
 // Function to insert or update form data
 function upsertFormData(formData) {
     runDbOperation((db) => {
-        const characterName = formData['Character Name'];
+        const characterName = formData['Text Field0'];
         const dataStr = JSON.stringify(formData);
         
         // First, try to find an existing record by character name
-        const findSql = `SELECT id FROM FormData WHERE json_extract(data, '$."Character Name"') = ?`;
+        const findSql = `SELECT id FROM FormData WHERE json_extract(data, '$."Text Field0"') = ?`;
         db.get(findSql, [characterName], (err, row) => {
             if (err) {
                 // Handle error in query
@@ -83,10 +83,10 @@ function queryAll(callback) {
     });
 }
 
-// Function to query a record by "Character Name"
+// Function to query a record by "Text Field0"
 function queryByCharacterName(characterName, callback) {
     runDbOperation((db) => {
-        db.get(`SELECT * FROM FormData WHERE json_extract(data, '$."Character Name"') = ?`, [characterName], callback);
+        db.get(`SELECT * FROM FormData WHERE json_extract(data, '$."Text Field0"') = ?`, [characterName], callback);
     });
 }
 
