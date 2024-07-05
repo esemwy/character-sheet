@@ -1,4 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
+const { readlinkSync } = require('fs');
 const path = require('path');
 
 const dbName = path.join(__dirname, 'data', 'characters.db');
@@ -29,24 +30,35 @@ function initializeDb() {
         db.serialize(() => {
             db.run(`CREATE TABLE IF NOT EXISTS FormData (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pdf_id INTEGER,
                 data JSON
             );`);
 
-            db.run(`CREATE INDEX IF NOT EXISTS idx_character_name ON FormData (
-                json_extract(data, '$."Text Field0"')
+            db.run(`CREATE TABLE IF NOT EXISTS Sheets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            );`);
+            
+            db.run(`CREATE TABLE IF NOT EXISTS SheetSettings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pdf_id INTEGER NOT NULL,
+                original TEXT NOT NULL,
+                placeholder TEXT NOT NULL
             );`);
         });
     });
 }
 
 // Function to insert or update form data
-function upsertFormData(formData) {
+function upsertFormData(id, key_map, formData) {
+
     runDbOperation((db) => {
-        const characterName = formData['Text Field0'];
+        const characterName = formData[key_map.name];
         const dataStr = JSON.stringify(formData);
         
         // First, try to find an existing record by character name
-        const findSql = `SELECT id FROM FormData WHERE json_extract(data, '$."Text Field0"') = ?`;
+        const findSql = `SELECT id FROM FormData WHERE json_extract(data, '$."${key_map.name}"') = ?`;
+        console.log(findSql);
         db.get(findSql, [characterName], (err, row) => {
             if (err) {
                 // Handle error in query
@@ -63,8 +75,8 @@ function upsertFormData(formData) {
                 });
             } else {
                 // No existing record found, perform an insert
-                const insertSql = `INSERT INTO FormData (data) VALUES (?)`;
-                db.run(insertSql, [dataStr], (insertErr) => {
+                const insertSql = `INSERT INTO FormData (pdf_id, data) VALUES (?, ?)`;
+                db.run(insertSql, [id, dataStr], (insertErr) => {
                     if (insertErr) {
                         console.error('Error inserting new record', insertErr.message);
                     } else {
@@ -83,6 +95,18 @@ function queryAll(callback) {
     });
 }
 
+function getSettings(callback) {
+    runDbOperation((db) => {
+        db.all(`SELECT 
+                Sheets.id as id,
+                Sheets.name AS sheet_name, 
+                SheetSettings.original as original,
+                SheetSettings.placeholder as placeholder
+            FROM SheetSettings, Sheets
+            WHERE SheetSettings.pdf_id = Sheets.id;`, [], callback);
+    });
+}
+
 // Function to query a record by "Text Field0"
 function queryByCharacterName(characterName, callback) {
     runDbOperation((db) => {
@@ -95,6 +119,7 @@ module.exports = {
     initializeDb,
     upsertFormData,
     queryAll,
+    getSettings,
     queryByCharacterName
 };
 

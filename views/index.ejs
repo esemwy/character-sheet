@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Embedded PDF Viewer</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="image-row">
+    <% for (let key in settings) { %>
+        <a href="/sheet/<%= settings[key].name %>"><img height="200" src="<%= settings[key].name.replace('pdf', 'jpg') %>"></a>
+    <% } %>
+    </div>
+</body>
+</html>

@@ -1,3 +1,6 @@
+const gSettingsById = <%- gSettingsById %>;
+const gSettingsByName = <%- gSettingsByName %>;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Override the openFile button
     const openFileButton = document.getElementById('openFile'); // Adjust this ID if necessary
@@ -86,6 +89,7 @@ function injectModals() {
 
 async function extractFormData() {
     const pdfDocument = PDFViewerApplication.pdfDocument;
+    const url = PDFViewerApplication.url;
     const formData = {}; // Object to hold our form data
 
     // Ensure the PDF document is loaded
@@ -114,9 +118,7 @@ async function extractFormData() {
         });
     }
 
-    // Log the extracted form data
-    console.log(formData);
-    return formData;
+    return { url: url, data: formData };
 }
 
 function sendFormData(formData) {
@@ -134,8 +136,12 @@ function sendFormData(formData) {
         return response.json();
     })
     .then(data => {
+        const url = formData.url;
+        const filename = url.substring(url.lastIndexOf('/') + 1);
+        const name_key = gSettingsByName[filename].rkey_map.name;
+        const character_name = formData.data[name_key];
         const messageEl = document.getElementById('characterSaveMessage');
-        messageEl.innerText = `Saved Character "${formData['Text Field0']}"`
+        messageEl.innerText = `Saved Character "${character_name}"`
         document.getElementById('characterSaveModal').style.display = 'block';
         setTimeout(() => {
             document.getElementById('characterSaveModal').style.display = 'none';
@@ -161,14 +167,24 @@ function fetchAndShowCharacters() {
         const listContainer = document.getElementById('characterList');
         listContainer.innerHTML = ''; // Clear previous content
         // Populate the modal with character data
+        const url = PDFViewerApplication.url;
+        const filename = url.substring(url.lastIndexOf('/') + 1);
+        const name_key = gSettingsByName[filename].rkey_map.name;
+        const race_key = gSettingsByName[filename].rkey_map.race;
+        const other_key = gSettingsByName[filename].rkey_map.other;
+        const pdf_id = gSettingsByName[filename].id;
         data.forEach(character => {
-            const characterRace = character.data.Race ? character.data.Race+' ' : ' '
-            const textLine = `${character.data['Text Field0']} -- ${character.data["Text Field2"]} from ${character.data["Text Field1"]}`;
-            const listItem = document.createElement('div');
-            listItem.textContent =  textLine; // Adjust according to your data structure
-            listItem.style.cursor = 'pointer';
-            listItem.onclick = () => selectCharacter(character); // Implement character selection logic
-            listContainer.appendChild(listItem);
+            if (character.pdf_id == pdf_id) {            
+                const characterName = character.data[name_key];
+                const characterRace = character.data[race_key]? character.data[race_key]+' ' : ' ';
+                const characterOther = character.data[other_key]? character.data[other_key]+' ' : ' ';
+                const textLine = `${characterName} -- ${characterRace} - ${characterOther}`;
+                const listItem = document.createElement('div');
+                listItem.textContent =  textLine; // Adjust according to your data structure
+                listItem.style.cursor = 'pointer';
+                listItem.onclick = () => selectCharacter(character); // Implement character selection logic
+                listContainer.appendChild(listItem);
+            }
         });
         // Show the modal
         document.getElementById('characterSelectModal').style.display = 'block';
