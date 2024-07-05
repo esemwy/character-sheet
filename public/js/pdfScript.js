@@ -135,7 +135,7 @@ function sendFormData(formData) {
     })
     .then(data => {
         const messageEl = document.getElementById('characterSaveMessage');
-        messageEl.innerText = `Saved Character "${formData['Character Name']}"`
+        messageEl.innerText = `Saved Character "${formData['Text Field0']}"`
         document.getElementById('characterSaveModal').style.display = 'block';
         setTimeout(() => {
             document.getElementById('characterSaveModal').style.display = 'none';
@@ -163,7 +163,7 @@ function fetchAndShowCharacters() {
         // Populate the modal with character data
         data.forEach(character => {
             const characterRace = character.data.Race ? character.data.Race+' ' : ' '
-            const textLine = `${character.data['Character Name']} -- ${toOrdinal(character.data.Level)} level ${characterRace}${character.data.Class}`;
+            const textLine = `${character.data['Text Field0']} -- ${character.data["Text Field2"]} from ${character.data["Text Field1"]}`;
             const listItem = document.createElement('div');
             listItem.textContent =  textLine; // Adjust according to your data structure
             listItem.style.cursor = 'pointer';
