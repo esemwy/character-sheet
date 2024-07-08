@@ -33,18 +33,6 @@ function initializeDb() {
                 pdf_id INTEGER,
                 data JSON
             );`);
-
-            db.run(`CREATE TABLE IF NOT EXISTS Sheets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE
-            );`);
-            
-            db.run(`CREATE TABLE IF NOT EXISTS SheetSettings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pdf_id INTEGER NOT NULL,
-                original TEXT NOT NULL,
-                placeholder TEXT NOT NULL
-            );`);
         });
     });
 }
@@ -58,7 +46,6 @@ function upsertFormData(id, key_map, formData) {
         
         // First, try to find an existing record by character name
         const findSql = `SELECT id FROM FormData WHERE json_extract(data, '$."${key_map.name}"') = ?`;
-        console.log(findSql);
         db.get(findSql, [characterName], (err, row) => {
             if (err) {
                 // Handle error in query
@@ -95,18 +82,6 @@ function queryAll(callback) {
     });
 }
 
-function getSettings(callback) {
-    runDbOperation((db) => {
-        db.all(`SELECT 
-                Sheets.id as id,
-                Sheets.name AS sheet_name, 
-                SheetSettings.original as original,
-                SheetSettings.placeholder as placeholder
-            FROM SheetSettings, Sheets
-            WHERE SheetSettings.pdf_id = Sheets.id;`, [], callback);
-    });
-}
-
 // Function to query a record by "Text Field0"
 function queryByCharacterName(characterName, callback) {
     runDbOperation((db) => {
@@ -119,7 +94,6 @@ module.exports = {
     initializeDb,
     upsertFormData,
     queryAll,
-    getSettings,
     queryByCharacterName
 };
 
