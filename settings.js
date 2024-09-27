@@ -1,43 +1,31 @@
-by_name = {
-    'Castles_and_Crusades.pdf': {
-        'id': 1,
-        'key_map': {
-            'Character Name': 'name', 
-            'Race': 'race', 
-            'Class': 'other'
-        }
+templates = {
+    "1": {
+        "key_name": 'Character Name', 
+        "name": "Castles_and_Crusades.pdf",
+        "menu_item": "${r['Character Name']} - ${r['Race']} ${r['Class']}",
+        "save_message": "Saved character ${r['Character Name']}..."
     },
-   'Traveller.pdf': {
-        'id': 2,
-        'key_map': {
-            'Text Field0': 'name', 
-            'Text Field2': 'race', 
-            'Text Field1': 'other'
-        }
+    "2": {
+        "key_name": 'Text Field0', 
+        "name": "Traveller.pdf",
+        "menu_item": "${r['Text Field0']} - ${r['Text Field1']} ${r['Text Field2']}",
+        "save_message": "Saved character ${r['Text Field0']}..."
     },
-   'Traveller_Spacecraft_Record.pdf': {
-        'id': 3,
-        'key_map': {
-            'ship name': 'name', 
-            'mass': 'race', 
-            'ship ID': 'other'
-        }
+    "3": {
+        "key_name": "ship name",
+        "name": "Traveller_Spacecraft_Record.pdf",
+        "menu_item": "${r['ship name']} - ${r['mass']} - ${r['Ship size']}D-tons",
+        "save_message": "Saved ship ${r['ship name']}..."
     }
 };
 
-// DO NOT EDIT BELOW THIS LINE
-for (const [_name, setting] of Object.entries(by_name)) {
-    by_name[_name].rkey_map = {};
-    for (const [key,value] of Object.entries(setting.key_map)) {
-        by_name[_name].rkey_map[value] = key;
-    }
-}
-by_id = {};
-for (const [key, value] of Object.entries(by_name)) {
-    by_id[value.id] = {name: key, key_map: value.key_map, rkey_map: value.rkey_map}
-}
+const id_map = Object.fromEntries(
+    Object.entries(templates).map(([key, value]) => [
+        value.name, key
+    ])
+);
 
 module.exports = {
-    gSettingsById: by_id,
-    gSettingsByName: by_name
+    gTemplates: templates,
+    gIds: id_map
 }
