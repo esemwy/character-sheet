@@ -1,91 +1,119 @@
-const sqlite3 = require('sqlite3').verbose();
-const { readlinkSync } = require('fs');
+const Database = require('better-sqlite3');
 const path = require('path');
 
 const dbName = path.join(__dirname, 'data', 'characters.db');
-console.log(dbName);
-// Function to run a database operation (query or command) and automatically close the connection
-function runDbOperation(operationCallback) {
-    const db = new sqlite3.Database(dbName, (err) => {
-        if (err) {
-            console.error('Error opening database', err.message);
-            return;
-        }
-        console.log('Connected to the SQLite database.');
 
-        operationCallback(db);
-
-        db.close((err) => {
-            if (err) {
-                console.error('Error closing database', err.message);
-            }
-            console.log('Database connection closed.');
-        });
-    });
+// Function to run a database operation using callbacks (opens and closes the database)
+function runDbOperation(callback) {
+    try {
+        const db = new Database(dbName); // Open the database
+        return callback(db);             // Call the callback with the result
+        db.close();                      // Close the database
+    } catch (err) {
+        console.error('Error during database operation:', err.stack);
+    }
 }
 
-// Initialize database and create table and index if they don't exist
-function initializeDb() {
+// Initialize the database (using callback)
+function initializeDb(callback) {
     runDbOperation((db) => {
-        db.serialize(() => {
-            db.run(`CREATE TABLE IF NOT EXISTS FormData (
+        db.exec(
+            `CREATE TABLE IF NOT EXISTS FormData (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pdf_id INTEGER,
                 data JSON
             );`);
-        });
     });
 }
 
-// Function to insert or update form data
-function upsertFormData(id, key_map, formData) {
-
+// Initialize the SheetData table (using callback)
+function initializeSheets(dataArray) {
     runDbOperation((db) => {
-        const characterName = formData[key_map.name];
-        const dataStr = JSON.stringify(formData);
-        
-        // First, try to find an existing record by character name
-        const findSql = `SELECT id FROM FormData WHERE json_extract(data, '$."${key_map.name}"') = ?`;
-        db.get(findSql, [characterName], (err, row) => {
-            if (err) {
-                // Handle error in query
-                console.error('Error finding record for update', err.message);
-            } else if (row) {
-                // Record exists, perform an update
-                const updateSql = `UPDATE FormData SET data = ? WHERE id = ?`;
-                db.run(updateSql, [dataStr, row.id], (updateErr) => {
-                    if (updateErr) {
-                        console.error('Error updating record', updateErr.message);
-                    } else {
-                        console.log(`Record updated successfully, ID: ${row.id}`);
-                    }
-                });
-            } else {
-                // No existing record found, perform an insert
-                const insertSql = `INSERT INTO FormData (pdf_id, data) VALUES (?, ?)`;
-                db.run(insertSql, [id, dataStr], (insertErr) => {
-                    if (insertErr) {
-                        console.error('Error inserting new record', insertErr.message);
-                    } else {
-                        console.log(`New record inserted with ID: ${this.lastID}`);
-                    }
-                });
+        db.exec(`DROP TABLE IF EXISTS SheetData`);
+        db.exec(
+            `CREATE TABLE SheetData (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pdf_name TEXT UNIQUE NOT NULL,
+                key_name TEXT NOT NULL,
+                menu_item TEXT NOT NULL,
+                save_message TEXT NOT NULL,
+                image TEXT NOT NULL
+            )`);
+
+        const insertStmt = db.prepare(
+            `INSERT INTO SheetData 
+                (
+                    pdf_name, key_name, menu_item, save_message, image
+                ) 
+            VALUES (?, ?, ?, ?, ?)`);
+        const insertTransaction = db.transaction((dataArray) => {
+            for (const data of dataArray) {
+                insertStmt.run(...data);
             }
         });
+
+        insertTransaction(dataArray);
     });
 }
 
-// Function to query all records
+function querySheet(name, callback) {
+    return runDbOperation((db) => {
+        const findStmt = db.prepare(`SELECT * FROM SheetData WHERE pdf_name = ?`);
+        const row = findStmt.get(name);
+        return callback ? callback(row) : row;
+    });
+}
+
+// Upsert form data (using callback)
+function upsertFormData(sheet_name, formData) {
+    const sheetData = querySheet(sheet_name);
+    const field_name = sheetData.key_name;
+    const field_value = formData[field_name];
+    const result = runDbOperation((db) => {
+        const dataStr = JSON.stringify(formData);
+        const findStmt = db.prepare(`SELECT id FROM FormData WHERE json_extract(data, '$."${field_name}"') = ?`);
+        const row = findStmt.get(field_value);
+
+        if (row) {
+            const updateStmt = db.prepare(`UPDATE FormData SET data = ? WHERE id = ?`);
+            updateStmt.run(dataStr, row.id);
+        } else {
+            const insertStmt = db.prepare(`INSERT INTO FormData (pdf_id, data) VALUES (?, ?)`);
+            insertStmt.run(id, dataStr);
+        }
+        return true; // Return a success indicator
+    });
+    return result ? `Saved ${field_value}...` : `Failed saving ${field_value}...`;
+}
+
+// Query all records (using callback)
 function queryAll(callback) {
     runDbOperation((db) => {
-        db.all(`SELECT * FROM FormData`, [], callback);
+        const stmt = db.prepare(`SELECT 
+            FormData.id AS id, 
+            FormData.data,
+            FormData.pdf_id,
+            SheetData.pdf_name, 
+            SheetData.key_name, 
+            SheetData.menu_item, 
+            SheetData.save_message, 
+            SheetData.image 
+        FROM 
+            FormData 
+        JOIN 
+            SheetData 
+        ON 
+            SheetData.id = FormData.pdf_id`);
+        const rows = stmt.all();
+        return callback ? callback(rows) : rows;
     });
 }
 
-// Function to query a record by "Text Field0"
-function queryByCharacterName(characterName, callback) {
-    runDbOperation((db) => {
-        db.get(`SELECT * FROM FormData WHERE json_extract(data, '$."Text Field0"') = ?`, [characterName], callback);
+// Synchronous function to query all rows in SheetData (remains synchronous)
+function queryAllSheets(callback) {
+    return runDbOperation((db) => {
+        const rows = db.prepare(`SELECT * FROM SheetData`).all();
+        return callback ? callback(rows) : rows;
     });
 }
 
@@ -94,7 +122,9 @@ module.exports = {
     initializeDb,
     upsertFormData,
     queryAll,
-    queryByCharacterName
+    initializeSheets,
+    queryAllSheets,
+    querySheet,
 };
 
 // Initialize DB at require-time

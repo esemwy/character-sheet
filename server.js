@@ -2,7 +2,10 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const db = require('./database');
-const { gSettingsById, gSettingsByName } = require('./settings');
+
+function applyTemplate(template, data) {
+  return new Function('r', `return \`${template}\`;`)(data);
+}
 
 const app = express();
 app.set('view engine', 'ejs');
@@ -14,36 +17,45 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Middleware
 app.use(bodyParser.json());
 
+
 app.post('/save-pdf-data', (req, res) => {
-    const url = req.body.url;
-    const formData = req.body.data;
-    const sheet_name = path.basename(url);
-    const config = gSettingsByName[sheet_name];
-    db.upsertFormData(config.id, config.rkey_map, formData);
-    res.json({status: 'success', message: 'Data received'});
+  const url = req.body.url;
+  const formData = req.body.data;
+  const sheet_name = path.basename(url);
+  const template = db.querySheet(sheet_name);
+  const message = applyTemplate(template.save_message, formData);
+  db.upsertFormData(sheet_name, formData);
+  res.json({status: 'success', message: message});
 });
 
-app.get('/get-characters', (req, res) => {
-  db.queryAll((err, characters) => {
-      if (err) {
-          console.error('Error fetching characters:', err);
-          res.status(500).send('Error fetching characters');
-          return;
-      }
-      // Assuming each character record's data is stored as a JSON string in the 'data' column
-      const parsedCharacters = characters.map(character => ({
-          id: character.id,
-          pdf_id: character.pdf_id,
-          data: JSON.parse(character.data)
-      }));
-        res.json(parsedCharacters);
+app.get('/get-characters/:pdf', (req, res) => {
+  const pdf = req.params.pdf;
+  db.queryAll((characters) => {
+    // Assuming each character record's data is stored as a JSON string in the 'data' column
+    const parsedCharacters = characters
+    .filter(character => character.pdf_name === pdf)
+    .map(character => {
+        const parsedData = JSON.parse(character.data);
+        return {
+            id: character.id,
+            pdf_name: character.pdf_name,
+            key_name: character.key_name,
+            image: character.image,
+            menu_item: applyTemplate(character.menu_item, parsedData),
+            save_message: applyTemplate(character.save_message, parsedData),
+            data: parsedData
+        };
+    });
+
+
+    res.json(parsedCharacters);
   });
 });
 
 
 app.get('/sheet/:pdf', (req, res) => {
   const pdf = req.params.pdf;
-  if (gSettingsByName[pdf]) {
+  if (db.querySheet(pdf)) {
     res.render('sheet', { pdf });
   }
   else {
@@ -51,16 +63,15 @@ app.get('/sheet/:pdf', (req, res) => {
   }
 });
 
-app.get('/pdfScript.js', (req, res) => {
-  res.set('Content-Type', 'application/javascript');
-  res.render('pdfScript', {
-    gSettingsById:   JSON.stringify(gSettingsById), 
-    gSettingsByName: JSON.stringify(gSettingsByName) 
-  });
-});
-
 app.get('/', (req, res) => {
-  res.render('index', { settings: gSettingsById });
+  const settings = db.queryAllSheets((rows) => {
+    return rows.reduce((dict, row) => {
+        dict[row.pdf_name] = row.image;
+        return dict; // Return the updated dictionary for the next iteration
+    }, {}); // Start with an empty object as the initial value
+  });
+
+  res.render('index', { settings: settings });
 });
 
 app.listen(PORT, () => {
