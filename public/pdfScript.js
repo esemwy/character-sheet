@@ -1,6 +1,3 @@
-const gSettingsById = <%- gSettingsById %>;
-const gSettingsByName = <%- gSettingsByName %>;
-
 document.addEventListener('DOMContentLoaded', function() {
     // Override the openFile button
     const openFileButton = document.getElementById('openFile'); // Adjust this ID if necessary
@@ -15,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
             event.stopPropagation(); // Stop the event from propagating to other handlers
 
             // Your custom logic here, e.g., showing the modal to select a character
-            console.log('Custom openFile action');
             fetchAndShowCharacters(); // Call your function to fetch characters and show the modal
         });
     }
@@ -137,11 +133,8 @@ function sendFormData(formData) {
     })
     .then(data => {
         const url = formData.url;
-        const filename = url.substring(url.lastIndexOf('/') + 1);
-        const name_key = gSettingsByName[filename].rkey_map.name;
-        const character_name = formData.data[name_key];
         const messageEl = document.getElementById('characterSaveMessage');
-        messageEl.innerText = `Saved Character "${character_name}"`
+        messageEl.innerText = data.message
         document.getElementById('characterSaveModal').style.display = 'block';
         setTimeout(() => {
             document.getElementById('characterSaveModal').style.display = 'none';
@@ -160,31 +153,22 @@ function toOrdinal(n) {
 }
 
 function fetchAndShowCharacters() {
+    const url = PDFViewerApplication.url;
+    const filename = url.substring(url.lastIndexOf('/') + 1);
     // Fetch character data from the server
-    fetch('/get-characters') // Adjust the endpoint as necessary
+    fetch(`/get-characters/${filename}`)
     .then(response => response.json())
     .then(data => {
         const listContainer = document.getElementById('characterList');
         listContainer.innerHTML = ''; // Clear previous content
         // Populate the modal with character data
-        const url = PDFViewerApplication.url;
-        const filename = url.substring(url.lastIndexOf('/') + 1);
-        const name_key = gSettingsByName[filename].rkey_map.name;
-        const race_key = gSettingsByName[filename].rkey_map.race;
-        const other_key = gSettingsByName[filename].rkey_map.other;
-        const pdf_id = gSettingsByName[filename].id;
         data.forEach(character => {
-            if (character.pdf_id == pdf_id) {            
-                const characterName = character.data[name_key];
-                const characterRace = character.data[race_key]? character.data[race_key]+' ' : ' ';
-                const characterOther = character.data[other_key]? character.data[other_key]+' ' : ' ';
-                const textLine = `${characterName} -- ${characterRace} - ${characterOther}`;
-                const listItem = document.createElement('div');
-                listItem.textContent =  textLine; // Adjust according to your data structure
-                listItem.style.cursor = 'pointer';
-                listItem.onclick = () => selectCharacter(character); // Implement character selection logic
-                listContainer.appendChild(listItem);
-            }
+            const textLine = character.menu_item;
+            const listItem = document.createElement('div');
+            listItem.textContent =  textLine; // Adjust according to your data structure
+            listItem.style.cursor = 'pointer';
+            listItem.onclick = () => selectCharacter(character); // Implement character selection logic
+            listContainer.appendChild(listItem);
         });
         // Show the modal
         document.getElementById('characterSelectModal').style.display = 'block';
@@ -202,16 +186,14 @@ function selectCharacter(character) {
 
     pdfDocument.getMetadata().then(() => {
         const numPages = pdfDocument.numPages;
-        console.log(numPages,'pages');
         // Iterate through the form fields and set their values based on characterData
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
             pdfDocument.getPage(pageNum).then(page => {
                 page.getAnnotations({ intent: 'display' }).then(annotations => {
                     annotations.forEach(annotation => {
-                        if (annotation.fieldType && characterData[annotation.fieldName] !== "") {
+                        if (annotation.fieldType) { // && characterData[annotation.fieldName] !== ""
                             const fieldId = annotation.id;
                             const fieldValue = characterData[annotation.fieldName];
-                            console.log(fieldId, fieldValue);
                             const fieldInput = document.getElementById(fieldId);
                             if (fieldInput) {
                                 if (fieldInput.type === 'checkbox') {
