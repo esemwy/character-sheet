@@ -19,21 +19,23 @@ app.use(bodyParser.json());
 
 
 app.post('/save-pdf-data', (req, res) => {
-  const url = req.body.url;
+  const url = req.body.url.substring(1);
   const formData = req.body.data;
   const sheet_name = path.basename(url);
   const template = db.querySheet(sheet_name);
   const message = applyTemplate(template.save_message, formData);
-  db.upsertFormData(sheet_name, formData);
+  db.upsertFormData(url, formData);
   res.json({status: 'success', message: message});
 });
 
 app.get('/get-characters/:pdf', (req, res) => {
   const pdf = req.params.pdf;
+  const template = db.querySheet(pdf);
+
   db.queryAll((characters) => {
     // Assuming each character record's data is stored as a JSON string in the 'data' column
     const parsedCharacters = characters
-    .filter(character => character.pdf_name === pdf)
+    .filter(character => character.pdf_id === template.id)
     .map(character => {
         const parsedData = JSON.parse(character.data);
         return {
