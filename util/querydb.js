@@ -1,4 +1,4 @@
-const {queryAll, queryAllSheets, querySheet } = require('./database');
+const {queryAll, queryAllSheets, querySheet } = require('../database');
 
 function applyTemplate(template, data) {
     return new Function('r', `return \`${template}\`;`)(data);

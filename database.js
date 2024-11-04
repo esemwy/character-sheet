@@ -67,19 +67,19 @@ function querySheet(name, callback) {
 // Upsert form data (using callback)
 function upsertFormData(sheet_name, formData) {
     const sheetData = querySheet(sheet_name);
+    const pdf_id = sheetData.pdf_id;
     const field_name = sheetData.key_name;
     const field_value = formData[field_name];
     const result = runDbOperation((db) => {
         const dataStr = JSON.stringify(formData);
         const findStmt = db.prepare(`SELECT id FROM FormData WHERE json_extract(data, '$."${field_name}"') = ?`);
         const row = findStmt.get(field_value);
-
         if (row) {
             const updateStmt = db.prepare(`UPDATE FormData SET data = ? WHERE id = ?`);
             updateStmt.run(dataStr, row.id);
         } else {
             const insertStmt = db.prepare(`INSERT INTO FormData (pdf_id, data) VALUES (?, ?)`);
-            insertStmt.run(id, dataStr);
+            insertStmt.run(pdf_id, dataStr);
         }
         return true; // Return a success indicator
     });

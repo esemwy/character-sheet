@@ -1,4 +1,4 @@
-const db = require('./database');
+const db = require('../database');
 
 function applyTemplate(template, data) {
     return new Function('r', `return \`${template}\`;`)(data);
