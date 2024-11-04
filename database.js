@@ -74,14 +74,21 @@ function upsertFormData(sheet_name, formData) {
         const dataStr = JSON.stringify(formData);
         const findStmt = db.prepare(`SELECT id FROM FormData WHERE json_extract(data, '$."${field_name}"') = ?`);
         const row = findStmt.get(field_value);
-        if (row) {
-            const updateStmt = db.prepare(`UPDATE FormData SET data = ? WHERE id = ?`);
-            updateStmt.run(dataStr, row.id);
-        } else {
-            const insertStmt = db.prepare(`INSERT INTO FormData (pdf_id, data) VALUES (?, ?)`);
-            insertStmt.run(pdf_id, dataStr);
+        try {
+            if (row) {
+                const updateStmt = db.prepare(`UPDATE FormData SET data = ? WHERE id = ?`);
+                updateStmt.run(dataStr, row.id);
+                return true;
+            } else {
+                const insertStmt = db.prepare(`INSERT INTO FormData (pdf_id, data) VALUES (?, ?)`);
+                insertStmt.run(pdf_id, dataStr);
+                return true;
+            }
         }
-        return true; // Return a success indicator
+        catch (err) {
+            console.error(err);
+            return false;
+        }
     });
     return result ? `Saved ${field_value}...` : `Failed saving ${field_value}...`;
 }
