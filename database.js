@@ -67,7 +67,7 @@ function querySheet(name, callback) {
 // Upsert form data (using callback)
 function upsertFormData(sheet_name, formData) {
     const sheetData = querySheet(sheet_name);
-    const pdf_id = sheetData.pdf_id;
+    const pdf_id = sheetData.id;
     const field_name = sheetData.key_name;
     const field_value = formData[field_name];
     const result = runDbOperation((db) => {
