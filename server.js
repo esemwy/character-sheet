@@ -65,6 +65,24 @@ app.get('/sheet/:pdf', (req, res) => {
   }
 });
 
+
+app.get('/pdf/:filename', (req, res) => {
+  const pdfDirectory = path.join(__dirname, 'pdfs');
+  const filePath = path.join(pdfDirectory, req.params.filename);
+
+  // Check if the file exists
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      return res.status(404).send('PDF not found');
+    }
+
+    // Stream the PDF to the response
+    res.setHeader('Content-Type', 'application/pdf');
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  });
+});
+
 app.get('/', (req, res) => {
   const settings = db.queryAllSheets((rows) => {
     return rows.reduce((dict, row) => {
