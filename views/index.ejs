@@ -8,7 +8,7 @@
 <body>
     <div class="image-row">
     <% for (let key in settings) { %>
-        <a href="/sheet/<%= key %>"><img height="200" src="<%= settings[key] %>"></a>
+        <a href="/sheet/<%= key %>"><img height="200" src="/jpg/<%= settings[key] %>"></a>
     <% } %>
     </div>
 </body>

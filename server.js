@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const db = require('./database');
+const fs = require('fs');
 
 function applyTemplate(template, data) {
   return new Function('r', `return \`${template}\`;`)(data);
@@ -65,6 +66,23 @@ app.get('/sheet/:pdf', (req, res) => {
   }
 });
 
+
+app.get('/jpg/:filename', (req, res) => {
+  const jpgDirectory = path.join(__dirname, 'pdfs');
+  const filePath = path.join(jpgDirectory, req.params.filename);
+
+  // Check if the file exists
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      return res.status(404).send('JPG not found');
+    }
+
+    // Stream the JPG to the response
+    res.setHeader('Content-Type', 'image/jpeg');
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  });
+});
 
 app.get('/pdf/:filename', (req, res) => {
   const pdfDirectory = path.join(__dirname, 'pdfs');
